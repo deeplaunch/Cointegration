@@ -4,7 +4,7 @@
 
 rm(list = ls())
 
-setwd("Q:/DATA/SPRAIMU/4_SysRisk/R Code")
+setwd("U:/My Documents/R/Financial Analysis/Event Study")
 data_folder <- "C:/Users/PZhao/Box/Effectiveness/Database/0. Raw data"
 saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/New Folder"
 
@@ -15,8 +15,8 @@ library(lubridate)
 library(openxlsx)
 library(reshape2)
 
-myfunc <-c('load_and_clean.R','single_table_func.R','reshaping.R','two_table_func.R','process_for_tableau.R')
-lapply(myfunc, source, verbose = FALSE)
+# myfunc <-c('load_and_clean.R','single_table_func.R','reshaping.R','two_table_func.R','process_for_tableau.R')
+# lapply(myfunc, source, verbose = FALSE)
 
 ## Setup Data Files
 bsl_file = "Dataset@1.xlsx"
@@ -36,17 +36,17 @@ df_global <- readxl::read_xlsx(path = paste(data_folder, price_file, sep = '/'),
 
 ## tranform from wide to long format
 
-df_cds <- df_cds %>%melt(
+df_cds <- tbl_df(df_cds %>%melt(
     id.var = c("date"),
     variable.name = "ifs",
     value.name = "cds"
-    ) 
+    ))
 
-df_embi <- df_embi %>%melt(
+df_embi <- tbl_df(df_embi %>%melt(
     id.var = c("date"),
     variable.name = "ifs",
     value.name = "embi"
-) 
+) )
 
 
 df_cds$ifs <- as.double(substring(as.character(df_cds$ifs), 2))
@@ -58,4 +58,7 @@ df_main <- tbl_df(full_join(df_main, df_global, by = c('date')))%>%arrange(ifs, 
 df_main <- tbl_df(full_join(df_main, df_bsl, by = c('ifs','date')))%>%arrange(ifs, date)
 
 ## save resutls
+df_main$date <- date(df_main$date)
 save(df_main, file = paste(saveFolder, "panel data.Rda", sep ="/"))
+
+## To be fixed: IFS was mapped to borrower, should be lender instead
