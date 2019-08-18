@@ -1,6 +1,7 @@
 # @ Harry Zhao
 # Created on 2019/08/16
-# Purpose: Analyze Bilateral Swap Line Effect on EM Credit Pricing
+# Project: Analyze Bilateral Swap Line Effect on EM Credit Pricing
+# Purpose: Initial loading from raw excel files, generate one panel for further process
 
 rm(list = ls())
 
@@ -9,6 +10,7 @@ data_folder <- "C:/Users/PZhao/Box/Effectiveness/Database/0. Raw data"
 saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/New Folder"
 
 library(tidyr)
+library(tidyverse)
 library(dplyr)
 library(stringr)
 library(lubridate)
@@ -23,42 +25,53 @@ bsl_file = "Dataset@1.xlsx"
 macro_file = "Dataset@2.xlsx"
 price_file = "Dataset@3.xlsx"
 
-## Load data
+## Load data (specify numerical columns for price data)
+
+df_cds <- readxl::read_xlsx(path = paste(data_folder, price_file, sep = '/'),
+                            sheet= "cds", na = c('n.a.', '', '.', '#TSREF!','0','#N/A N/A'),
+                            col_types = c("date", rep(c("numeric"),77)))
+
+df_embi <- readxl::read_xlsx(path = paste(data_folder, price_file, sep = '/'),
+                            sheet= "embi", na = c('n.a.', '', '.', '#TSREF!','0','#N/A N/A'),
+                            col_types = c("date", rep(c("numeric"),83)))
+
 
 df_bsl <- readxl::read_xlsx(path = paste(data_folder, bsl_file, sep = '/'),
                             sheet= "bsl", na = c('n.a.', '', '.', '#TSREF!','0','#N/A N/A'))
-df_cds <- readxl::read_xlsx(path = paste(data_folder, price_file, sep = '/'),
-                              sheet= "cds", na = c('n.a.', '', '.', '#TSREF!','0','#N/A N/A'))
-df_embi <- readxl::read_xlsx(path = paste(data_folder, price_file, sep = '/'),
-                            sheet= "embi", na = c('n.a.', '', '.', '#TSREF!','0','#N/A N/A'))
+
 df_global <- readxl::read_xlsx(path = paste(data_folder, price_file, sep = '/'),
                              sheet= "vix_us10", na = c('n.a.', '', '.', '#TSREF!','0','#N/A N/A'))
 
 ## tranform from wide to long format
 
 df_cds <- tbl_df(df_cds %>%melt(
-    id.var = c("date"),
+    id = c("date"),
     variable.name = "ifs",
     value.name = "cds"
     ))
 
 df_embi <- tbl_df(df_embi %>%melt(
-    id.var = c("date"),
+    id= c("date"),
     variable.name = "ifs",
     value.name = "embi"
 ) )
 
-
-df_cds$ifs <- as.double(substring(as.character(df_cds$ifs), 2))
-df_embi$ifs <- as.double(substring(as.character(df_embi$ifs), 2))
+## convert to double
+df_cds$ifs <- as.double(as.character(df_cds$ifs))
+df_embi$ifs <- as.double(as.character(df_embi$ifs))
 
 ## merge all tables
 df_main <- tbl_df(full_join(df_cds, df_embi, by = c('ifs', 'date')))%>%arrange(ifs, date)
 df_main <- tbl_df(full_join(df_main, df_global, by = c('date')))%>%arrange(ifs, date)
 df_main <- tbl_df(full_join(df_main, df_bsl, by = c('ifs','date')))%>%arrange(ifs, date)
 
-## save resutls
+## save results as a list of panels, each panel corresponds to one event
 df_main$date <- date(df_main$date)
+
+View(df_main%>%filter(date == '2009-12-01'))
+
+df_main <- df_main%>%filter(!is.na(ifs))
+
 save(df_main, file = paste(saveFolder, "panel data.Rda", sep ="/"))
 
 ## To be fixed: IFS was mapped to borrower, should be lender instead
