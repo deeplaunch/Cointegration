@@ -63,7 +63,8 @@ df_embi$ifs <- as.double(as.character(df_embi$ifs))
 ## merge all tables
 df_main <- tbl_df(full_join(df_cds, df_embi, by = c('ifs', 'date')))%>%arrange(ifs, date)
 df_main <- tbl_df(full_join(df_main, df_global, by = c('date')))%>%arrange(ifs, date)
-df_main <- tbl_df(full_join(df_main, df_bsl, by = c('ifs','date')))%>%arrange(ifs, date)
+df_main <- tbl_df(full_join(df_main, df_bsl, by = c('ifs','date')))%>%arrange(ifs, date) 
+# note: IFS was mapped to "borrower", whose credit pricing we are interested in
 
 ## save results as a list of panels, each panel corresponds to one event
 df_main$date <- date(df_main$date)
@@ -73,5 +74,3 @@ View(df_main%>%filter(date == '2009-12-01'))
 df_main <- df_main%>%filter(!is.na(ifs))
 
 save(df_main, file = paste(saveFolder, "panel data.Rda", sep ="/"))
-
-## To be fixed: IFS was mapped to borrower, should be lender instead

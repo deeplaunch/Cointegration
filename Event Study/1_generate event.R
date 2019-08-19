@@ -1,7 +1,7 @@
 # @ Harry Zhao
 # Created on 2019/08/16
-# Project: Analyze Bilateral Swap Line Effect on EM Credit Pricing
-# Purpose: Generate a full panel for each event from initial panel
+#========== Project: Analyze Bilateral Swap Line Effect on EM Credit Pricing
+#========== Purpose: Generate a list of full panel, whose every element is for an event date
 
 rm(list = ls())
 
@@ -17,7 +17,7 @@ library(reshape2)
 load("C:/Users/PZhao/Box/Effectiveness/Database/New folder/panel data.Rda")
 saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/New Folder"
 
-##################### data cleaning ##########################
+############################ 1. data cleaning ########################
 
 df_main <- df_main%>%filter(year(date)>= 2000) # drop 8 rows before 2000
 df_main$date <- as.Date(df_main$date)
@@ -40,18 +40,17 @@ df_unique_date <- df_main%>%filter(bsl_dummy ==1)%>%
 # df_main <- df_main%>%mutate(bsl_id = paste(replace_na(borrower,""), as.character(date), sep = "_"))
 # df_main[ str_length(df_main$bsl_id)==11, ]$bsl_id <- NA
 
-################ loop over each unique bsl_id ################
+################# 2. loop over each unique bsl_id ################
 
-date_list <- list()
+date_list <- list() # Very important step to convert to a list of strings
 date_list[as.character(df_unique_date%>%pull(date))] <- as.character(df_unique_date$date)
-#date_list
+
 ## use vectorization to save time
 
-generate_event_data<- function(d){
-    ## Here each event is treated independently,
-    ## regardless of potentially overlapping event.
-
-    event_date <- as.Date(d)
+generate_event_data<- function(event_date_str){
+    
+    ## Each event is selected regardless of potentially overlapping with other events
+    event_date <- as.Date(event_date_str)
     # use t +/- 200
     df_panel <- df_main%>%
         filter(date >= as.Date(event_date- 200) & date <= as.Date(event_date + 200))
@@ -62,12 +61,11 @@ generate_event_data<- function(d){
 
 df_panel_list <- lapply(date_list, generate_event_data)
 
-####################### save results ###############################
+####################### 3. save results ###############################
 print(paste("Total number of events saved:",length(date_list)))
 save(df_panel_list, file = paste(saveFolder, "event panel list.Rda", sep ="/"))
 
 ## df_event_panel <- data.frame(Reduce(rbind, df_panel_list)) # Take very long to process
-
 
 # ## generate date range for df_bsl (+1, -1) 
 # df_main <- df_main%>%group_by(ifs)%>%
@@ -77,5 +75,3 @@ save(df_panel_list, file = paste(saveFolder, "event panel list.Rda", sep ="/"))
 # ## set NA for non bsl dates
 # df_main[is.na(df_main$bsl),]$max_date <- NA
 # df_main[is.na(df_main$bsl),]$min_date <- NA
-
-
