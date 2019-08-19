@@ -23,7 +23,7 @@ library(reshape2)
 ## Setup Data Files
 bsl_file = "Dataset@1.xlsx"
 macro_file = "Dataset@2.xlsx"
-price_file = "Dataset@3.xlsx"
+price_file = "Dataset@3_2.xlsx"
 
 ## Load data (specify numerical columns for price data)
 
