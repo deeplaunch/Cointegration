@@ -93,7 +93,7 @@ do_pca_analysis <-function(df){
 
 df_pca_res_list <- lapply(df_panel_list, do_pca_analysis)
 
-
+save(df_pca_res_list, file = paste(saveFolder, "pca panel list.Rda", sep ="/"))
 #plot(pca_embi$x[,"PC1"],pca_embi$x[,"PC2"], xlab="PC1 (75.4%)", ylab = "PC2 (14.2%)", main = "PC1 / PC2 - plot")
 #plot(pca_embi$x[,"PC1"], df_embi$`298`, xlab ="PC1", ylab ="Country_298")
 #screeplot(pca_embi)
