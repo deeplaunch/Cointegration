@@ -1,0 +1,139 @@
+---
+title: "Option Pricing"
+author: "Sanjiv Das"
+date: "7/28/2018"
+output: html_document
+---
+
+## Black-Merton-Scholes (1973)
+
+The famous Black-Scholes (1973) and Merton (1973) option pricing model is used to price European call and put options. The equation for the call price is as follows:
+
+$$
+C = S e^{-qT} N(d_1) - K e^{-rT} N(d_2)
+$$
+where 
+
+$$
+d_1 = \frac{\ln(S/K)+(r-q+\frac{1}{2}\sigma^2)T}{\sigma \sqrt{T}}; \quad d_2 = d_1 - \sigma \sqrt{T}
+$$
+
+The corresponding equation for the put price is:
+
+$$
+P = K e^{-rT} N(-d_2) - S e^{-qT} N(-d_1)
+$$
+
+The code for the model is here:
+
+```{r}
+#Black-Merton-Scholes 1973
+#sig: volatility
+#S: stock price
+#K: strike price
+#T: maturity
+#r: risk free rate
+#q: dividend rate
+#cp = 1 for calls and -1 for puts
+#optprice: observed option price
+bms73 = function(sig,S,K,T,r,q,cp=1) {
+    d1 = (log(S/K)+(r-q+0.5*sig^2)*T)/(sig*sqrt(T))
+    d2 = d1 - sig*sqrt(T)
+    if (cp==1) {
+        optval = S*exp(-q*T)*pnorm(d1)-K*exp(-r*T)*pnorm(d2)
+        }
+    else {
+        optval = -S*exp(-q*T)*pnorm(-d1)+K*exp(-r*T)*pnorm(-d2)		
+    }
+}
+```
+
+We run example prices using some sample parameters. 
+
+```{r}
+S=50; K=51; T=1; sig=0.15; rf=0.02; q=0.01
+cat("Call price: "); print(bms73(sig,S,K,T,rf,q))
+cat("Put price: "); print(bms73(sig,S,K,T,rf,q,cp=-1))
+```
+
+## Pricing by Simulation
+
+We use a parallelized approach:
+
+```{r}
+m = 50000  #No of simulation paths
+n = 50     #No of time periods
+h = T/n    #Time interval
+stk = matrix(0,m,n+1)  #Grid for stock paths
+e = matrix(rnorm(m*n),m,n)
+stk[,1] = S
+for (t in 2:(n+1)) {
+  stk[,t] = stk[,t-1]*exp((rf-q-0.5*sig^2)*h + sig*sqrt(h)*e[,t-1]) #vectorization on columns (time)
+}
+c = mean(pmax(0,stk[,n+1]-K))*exp(-rf*T)
+p = mean(pmax(0,K-stk[,n+1]))*exp(-rf*T)
+print(c(c,p))
+```
+
+## Antithetic Variance Reduction
+
+By choosing opposing complementary random variables, we can reduce the variance of the estimates. 
+
+```{r}
+m = 50000  #No of simulation paths
+n = 50     #No of time periods
+h = T/n    #Time interval
+stk = matrix(0,m,n+1)  #Grid for stock paths
+
+#Antithetic
+e1 = matrix(rnorm(m/2*n),m/2,n)
+e2 = -e1
+e = rbind(e1,e2)
+
+stk[,1] = S
+for (t in 2:(n+1)) {
+  stk[,t] = stk[,t-1]*exp((rf-q-0.5*sig^2)*h + sig*sqrt(h)*e[,t-1])
+}
+c = mean(pmax(0,stk[,n+1]-K))*exp(-rf*T)
+p = mean(pmax(0,K-stk[,n+1]))*exp(-rf*T)
+print(c(c,p))
+```
+
+## Longstaff-Schwartz Model
+
+```{r}
+LSM = function(S0,K,sig,r,h,n,m) {
+  stock = stk  # Initialize stock grid using previous grid
+  option = matrix(0,m,n+1)  # Initialize option grid
+  option[,n+1] = pmax(0, K - stock[,n+1]) # option at maturity
+  # Backward recursion
+  for (i in seq(n, 2, -1)) { 
+    index = which(K - stock[, i] > 0)  #rows early exercise possible
+    W = exp(-r * h) * option[, i + 1] # continuation value 
+    Y = W[index] # Vector of continuation values
+    S = stock[index, i] # stock price vector for regression 
+    # matrix for 3rd order polynomial regression 
+    S = matrix(c(S, S^2, S^3), length(S), 3); 
+    beta = lm(Y ~ S); 
+    # continuation value step 
+    earlyIndex = matrix(0, m, 1)
+    earlyIndex[index] = 1
+    S = stock[, i]
+    S = matrix(c(S, S^2, S^3), length(S), 3)
+    predictedY = S %*% beta$coefficients[2:4] + beta$coefficients[1]
+    contVal = predictedY * earlyIndex
+    earlyIndex2 = matrix(0, m, 1)
+    index = which(K - stock[, i] > contVal)
+    earlyIndex2[index] = 1
+    earlyIndex = earlyIndex * earlyIndex2
+    option[, i] = earlyIndex * (K - stock[, i]) + (1 - earlyIndex) * W
+  } 
+  # Complete option value at initial date
+  option[, 1] = option[, 2] * exp(-r * h); 
+  result = max(mean(option[, 1]), K - S0); 
+}
+
+AmPut = LSM(S,K,sig,rf,h,n,m)
+print(AmPut)
+```
+

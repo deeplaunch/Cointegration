@@ -1,0 +1,46 @@
+---
+title: "Portfolio Loss Distribution"
+author: "Sanjiv Das"
+date: "7/28/2018"
+output: html_document
+---
+
+Program to implement the Andersen-Sidenius-Basu (Risk, 2003) recursion algorithm. 
+
+Note that the probabilities are fixed, i.e. conditional on a given level of factor.
+
+The full blown distribution comes from the integral over all levels of the factor.
+
+```{r}
+#INPUTS
+w = c(2,1,3,7)  # Loss weights
+p = c(0.10, 0.05, 0.03, 0.2) # Loss probabilities
+
+#BASIC SET UP
+N = length(w)
+maxloss = sum(w)
+bucket = seq(0,maxloss)
+LP = matrix(0,N,maxloss+1)  # probability grid over losses
+
+#DO FIRST FIRM
+LP[1,1] = 1-p[1]
+LP[1,w[1]+1] = p[1]
+
+#LOOP OVER REMAINING FIRMS
+for (i in 2:N) {
+  for (j in 1:(maxloss+1)) {
+    LP[i,j] = LP[i-1,j]*(1-p[i]) 
+    if (bucket[j]-w[i] >= 0) {
+      LP[i,j] = LP[i,j] + LP[i-1,j-w[i]]*p[i]
+    } 
+  }
+}
+	
+LP = t(LP)
+print(LP)
+```
+
+```{r}
+barplot(LP[,N], names.arg=bucket, xlab='Loss Level', ylab='Probability')
+```
+
