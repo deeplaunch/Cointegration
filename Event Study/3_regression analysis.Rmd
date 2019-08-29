@@ -1,0 +1,151 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+rm(list = ls())
+
+library(readstata13)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+
+setwd("U:/My Documents/R/Financial Analysis/Event Study")
+data_folder <- "C:/Users/PZhao/Box/Effectiveness/Database/2. Database"
+saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/4. R data"
+
+```
+Load Data
+
+```{r}
+# Load main dataframe
+load(file = paste(saveFolder, "event_data.Rda", sep ="/"))
+
+# Load GDP
+gdp_file <- "gdp.dta"
+gdp_df <- tbl_df(read.dta13((paste(data_folder, gdp_file, sep ='/'))))
+
+# merge with main dataframe
+main_df <- main_df%>%mutate(year = year(date))
+main_df <- left_join(main_df, gdp_df, by = c("ifs","year"))
+main_df%>%arrange(ifs,date)
+
+main_df <- main_df%>%mutate(size = bsl/gdp)
+```
+Baseline on size of BSL relative to GDP
+
+```{r}
+fit_0 <- lm(e_cds_5d~size, main_df)
+summary(fit_0)
+
+```
+Specification 1: dummy=1 if lender is China, zero otherwise, and this variable interacted with Size BSL
+```{r}
+fit1_1 <- lm(e_cds_5d~size + china, main_df)
+summary(fit1_1)
+```
+```{r}
+### add interaction with size
+fit1_2 <- lm(e_cds_5d~size * china, main_df)
+summary(fit1_2)
+```
+Specification 2: dummy=1 if BSL is not the first, zero otherwise, and this variable interacted with Size BSL
+```{r}
+main_df <- main_df%>%
+    group_by(ifs)%>%
+    arrange(date)%>%
+    mutate(is_first = row_number())
+
+main_df[which(main_df$is_first>1),]$is_first <- 0
+
+fit2_1 <- lm(e_cds_5d~size+is_first, main_df)
+summary(fit2_1)
+```
+```{r}
+###Add interaction
+fit2_2 <- lm(e_cds_5d ~size*is_first, main_df)
+summary(fit2_2)
+```
+Specification 3: dummy=1 if BSL is not the first and has been drawn in the past, zero otherwise, and this variable interacted with Size BSL (skipped for now)
+Specification 4: whether country is part of RFA  at the time of announcement, and this variable interacted with Size BSL(skipped for now)
+Specification 5: previous year's reserves to GDP, and this variable interacted with Size BSL
+```{r}
+# Load Reserve
+reserve_file <- "res.dta"
+reserve_df <- tbl_df(read.dta13((paste(data_folder, reserve_file, sep ='/'))))
+reserve_df <- left_join(reserve_df,gdp_df, by=c("ifs","year"))
+
+# Generate Lag
+reserve_df <- reserve_df%>%
+    mutate(res_gdp = res/gdp)%>%
+    group_by(ifs)%>%
+    arrange(year)%>%
+    mutate(res_gdp_lag = lag(res_gdp))%>%
+    ungroup()
+# Merge with main dataframe
+reserve_df <- reserve_df%>%
+    select(ifs,year,res,res_gdp_lag)
+
+main_df <- left_join(main_df,reserve_df, by = c("ifs","year"))
+main_df <- main_df%>%ungroup()
+```
+```{r}
+fit5_1 <- lm(e_cds_5d ~size + res_gdp_lag, main_df)
+summary(fit5_1)
+```
+```{r}
+#Add interaction
+fit5_2 <- lm(e_cds_5d ~size * res_gdp_lag, main_df)
+summary(fit5_2)
+```
+Specification 6: previous year's reserves to M2, and this variable interacted with Size BSL
+```{r}
+# Load M2
+m2_file <- "m2.dta"
+m2_df <- tbl_df(read.dta13((paste(data_folder, m2_file, sep ='/'))))
+m2_df <- left_join(reserve_df,m2_df, by=c("ifs","year"))
+
+# Generate Lag
+m2_df <- m2_df%>%
+    mutate(res_m2= res/m2)%>%
+    group_by(ifs)%>%
+    arrange(year)%>%
+    mutate(res_m2_lag = lag(res_m2))%>%
+    ungroup()
+# Merge with main dataframe
+m2_df <- m2_df%>%
+    select(ifs,year,m2,res_m2_lag)
+
+main_df <- left_join(main_df,m2_df, by = c("ifs","year"))
+main_df <- main_df%>%ungroup()
+
+fit6_1 <- lm(e_cds_5d ~size + res_m2_lag, main_df)
+summary(fit6_1)
+
+```
+```{r}
+# Add interaction
+fit6_2 <- lm(e_cds_5d ~ size * res_m2_lag, main_df)
+summary(fit6_2)
+
+```
+Specification 7: previous year's short-term debt due to GDP, and this variable interacted with Size BSL
+```{r}
+
+```
+

@@ -1,8 +1,8 @@
 # @ Harry Zhao
 # Created on 2019/08/28
 # Project: Analyze Bilateral Swap Line Effect on EM Credit Pricing
-# Purpose: Take residuls from earlier regression of credit pricing on global risk factors 
-# (US 10yr, VIX) and run regress on independent variables of interest.
+# Purpose: Take residuls from earlier regression of credit pricing on global risk factors (US 10yr, VIX) 
+# and build 5-day and 120-day rolling sum for each event.
 
 rm(list = ls())
 
@@ -38,18 +38,21 @@ short_event_df<- event_df%>%
     summarise(all_lender = paste(lender, collapse = ','), lender = first(lender))%>%
     ungroup()
 
+short_event_df <-short_event_df%>%
+    arrange(date)%>%
+    mutate(event_id = row_number())
+
 main_df <- left_join(main_df,short_event_df,by = c("date","ifs"))%>%
     filter(lender.x == lender.y | (is.na(lender.x) & is.na(lender.y)))
 
 ### Generate Dummy for bsl t to t+4
-
 main_df <- main_df%>%arrange(ifs, date)%>%
     mutate(bsl_dummy = bsl/bsl)%>%
     group_by(ifs)%>%
     mutate(bsl_dummy_lag = lag(bsl_dummy, 5)*2)%>%
     ungroup()
 
-main_df <- main_df%>%group_by(ifs)%>%
+main_df <- main_df%>%
     rowwise()%>%
     mutate(range = sum(bsl_dummy, bsl_dummy_lag, na.rm =TRUE))%>%
     ungroup()
@@ -57,26 +60,28 @@ main_df <- main_df%>%group_by(ifs)%>%
 ### select only bsl_range is 1
 main_df[which(main_df$range==0),]$range<- NA
 
-main_df <- main_df%>%group_by(ifs)%>%
+main_df <- main_df%>%
+    group_by(ifs)%>%
     fill(range)%>%
     ungroup()
 
 main_df <- main_df%>%filter(range ==1)
 
-View(main_df%>%filter(year == 2000 & ifs == 536))
+main_df <- main_df%>%arrange(ifs,date)%>%
+    group_by(ifs)%>%
+    fill(event_id)%>%
+    ungroup()
 
-### Sample analysis on size of BSL relative to GDP
+### Get sum of residuals for each event
+main_df <- main_df%>%group_by(event_id)%>%
+    summarise(date=min(date), ifs = first(ifs), cds = first(cds), embi = first(embi), china = first(china), 
+              e_embi_5d = sum(e_embi), e_cds_5d = sum(e_cds), vix = first(vix), us10 = first(us10),
+              lender = first(lender.x), borrower = first(borrower), bsl = first(bsl), all_lender = first(all_lender))
 
-# Load GDP
-gdp_file <- "gdp.dta"
-gdp_df <- tbl_df(read.dta13((paste(data_folder, gdp_file, sep ='/'))))
 
-# merge with main dataframe
-main_df <- main_df%>%mutate(year = year(date))
-main_df <- left_join(main_df, gdp_df, by = c("ifs","year"))
-main_df%>%arrange(ifs,date)
+View(main_df%>%filter(year(date) >= 2010 & ifs == 536))
 
-main_df <- main_df%>%mutate(size = bsl/gdp)
-
-fit <- lm(e_cds~size, main_df)
-summary(fit)
+### save
+hist(main_df$e_embi_5d)
+hist(main_df$e_cds_5d)
+save(main_df, file = paste(saveFolder, "event_data.Rda", sep ="/"))

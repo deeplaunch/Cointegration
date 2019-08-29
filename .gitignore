@@ -17,6 +17,7 @@
 *.png
 *.txt
 *.Rhistory
+*.html
 
 ## add ignore folder 
 *data/
