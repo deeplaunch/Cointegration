@@ -7,7 +7,7 @@ rm(list = ls())
 
 setwd("U:/My Documents/R/Financial Analysis/Event Study")
 data_folder <- "C:/Users/PZhao/Box/Effectiveness/Database/0. Raw data"
-saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/New Folder"
+saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/4. R data"
 
 library(tidyr)
 library(tidyverse)
@@ -23,7 +23,7 @@ library(reshape2)
 ## Setup Data Files
 bsl_file = "Dataset@1.xlsx"
 macro_file = "Dataset@2.xlsx"
-price_file = "Dataset@3_2.xlsx"
+price_file = "Dataset@3.xlsx"
 
 ## Load data (specify numerical columns for price data)
 
@@ -68,9 +68,16 @@ df_main <- tbl_df(full_join(df_main, df_bsl, by = c('ifs','date')))%>%arrange(if
 
 ## save results as a list of panels, each panel corresponds to one event
 df_main$date <- date(df_main$date)
-
 View(df_main%>%filter(date == '2009-12-01'))
-
 df_main <- df_main%>%filter(!is.na(ifs))
-
 save(df_main, file = paste(saveFolder, "panel data.Rda", sep ="/"))
+
+## some basic statistics on time-series properties
+ts_cds <- ts(na.exclude(df_cds$`564`))
+# very high auto-correlation
+acfRes <- acf(ts_cds)
+pacfRes <- pacf(ts_cds)
+
+# Dicky-Fuller test for stationary
+library(tseries)
+adf.test(ts_cds) # p-value = 0.381 > 0.05 rejects TS is stationary

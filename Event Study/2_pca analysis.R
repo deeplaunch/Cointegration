@@ -14,8 +14,8 @@ library(lubridate)
 library(openxlsx)
 library(reshape2)
 
-load("C:/Users/PZhao/Box/Effectiveness/Database/New folder/event panel list.Rda")
-saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/New Folder"
+load("C:/Users/PZhao/Box/Effectiveness/Database/4. R data/event panel list.Rda")
+saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/4. R data"
 
 #df_panel <- df_panel_list$`2011-11-01`
 df_panel<- df_panel_list$`2000-05-01`

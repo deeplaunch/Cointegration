@@ -15,7 +15,7 @@ library(openxlsx)
 library(reshape2)
 
 load("C:/Users/PZhao/Box/Effectiveness/Database/New folder/panel data.Rda")
-saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/New Folder"
+saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/4. R data"
 
 ############################ 1. data cleaning ########################
 
