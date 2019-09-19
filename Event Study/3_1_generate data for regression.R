@@ -11,6 +11,7 @@ library(tidyr)
 library(dplyr)
 library(lubridate)
 library(RcppRoll)
+library(reshape2)
 
 setwd("U:/My Documents/R/Financial Analysis/Event Study")
 raw_data_folder <-"C:/Users/PZhao/Box/Effectiveness/Database/0. Raw data"
@@ -30,7 +31,6 @@ load(paste(saveFolder, "panel data.rda", sep = "/"))
 # Merge two dataframes
 main_df <- left_join(daily_df, df_main, by = c("date","ifs","embi","cds"))
 
-
 # Aggregare multiple lenders into one
 event_df <- main_df%>%filter(bsl>0)
 short_event_df<- event_df%>%
@@ -46,19 +46,24 @@ short_event_df <-short_event_df%>%
 main_df <- left_join(main_df,short_event_df,by = c("date","ifs"))%>%
     filter(lender.x == lender.y | (is.na(lender.x) & is.na(lender.y)))
 
-### Generate rolling sum of residual for t + 5 and t + 120, and t -20
+##============ Generate rolling sum of residual for t + 5 and t + 120, and t -20 ==========#
 
 main_df <- main_df%>%group_by(ifs)%>%
     arrange(date)%>%
-    mutate(e_embi_5d = roll_sum(e_embi, n = 5, fill = NA, align = "left"))%>%
-    mutate(e_embi_120d = roll_sum(e_embi, n = 120, fill = NA, align = "left"))%>%
-    mutate(e_cds_5d = roll_sum(e_cds, n = 5, fill = NA, align = "left"))%>%
-    mutate(e_cds_120d = roll_sum(e_cds, n = 120, fill = NA, align = "left"))%>%
-    mutate(e_embi_l_20d = roll_sum(e_embi, n = 20, fill = NA, align = "right"))%>%
-    mutate(e_cds_l_20d = roll_sum(e_cds, n = 20, fill = NA, align = "right"))%>%
+    mutate(e_embi_5d_m = roll_mean(e_embi, n = 5, fill = NA, align = "left"))%>%
+    mutate(e_embi_5d_m_l = lag(e_embi_5d_m, n = 5))%>%
+    mutate(e_embi_5d_m_diff = (e_embi_5d_m - e_embi_5d_m_l))%>%
+    mutate(e_embi_4d_lead = lead(e_embi, n=4))%>%
+    mutate(e_embi_1d_lag = lag(e_embi,n=1))%>%
+    mutate(e_embi_5d_diff = e_embi_4d_lead - e_embi_1d_lag)%>%
     ungroup()
 
-# View(x%>%filter(year(date) >= 2010 & ifs == 536))
+# View(main_df%>%filter(year(date) >= 2010 & ifs == 536))
+# mutate(e_embi_120d_m = roll_mean(e_embi, n = 120, fill = NA, align = "left"))%>%
+# mutate(e_cds_5d_m = roll_mean(e_cds, n = 5, fill = NA, align = "left"))%>%
+#     mutate(e_cds_l_5d_m = lag(e_cds_5d_m, n = 5, fill = NA, align = "right"))%>%
+#     mutate(e_cds_120d_m = roll_mean(e_cds, n = 120, fill = NA, align = "left"))%>%
+
 
 ### Kepp Dummy
 
@@ -69,7 +74,7 @@ main_df <- main_df%>%
 main_df <- main_df%>%filter(bsl_dummy == 1)
 
 
-## Load GDP
+##===================== Load GDP =========================##
 gdp_file <- "gdp.dta"
 gdp_df <- tbl_df(read.dta13((paste(data_folder, gdp_file, sep ='/'))))
 
@@ -80,7 +85,7 @@ main_df%>%arrange(ifs,date)
 
 main_df <- main_df%>%mutate(size = bsl/gdp)
 
-## Generate Dummy for "First"
+##=========== Generate Dummy for "First" ===============##
 
 main_df <- main_df%>%
     group_by(ifs)%>%
@@ -89,7 +94,7 @@ main_df <- main_df%>%
 
 main_df[which(main_df$is_first>1),]$is_first <- 0
 
-## Generate Lagged Reserve to GDP
+##============= Generate Lagged Reserve to GDP =========#
 
 # Load Reserve
 reserve_file <- "res.dta"
@@ -111,7 +116,7 @@ main_df <- left_join(main_df,reserve_df, by = c("ifs","year"))
 main_df <- main_df%>%ungroup()
 
 
-## Generate Lagged Reserve to M2
+##====== Generate Lagged Reserve to M2 ===========#
 
 # Load M2
 m2_file <- "m2.dta"
@@ -133,7 +138,7 @@ main_df <- left_join(main_df,m2_df, by = c("ifs","year"))
 main_df <- main_df%>%ungroup()
 
 
-## Generate Lagged Short-term Debt to GDP
+##====== Generate Lagged Short-term Debt to GDP ===========#
 
 # Load Short-term Debt
 debt_file <- "debt.dta"
@@ -154,7 +159,7 @@ debt_df <- debt_df%>%
 main_df <- left_join(main_df,debt_df, by = c("ifs","year"))
 main_df <- main_df%>%ungroup()
 
-## Generate Lagged Short-term Debt to M2
+##======== Generate Lagged Short-term Debt to M2 ===========#
 
 main_df <- main_df%>%mutate(debt_m2 = debt/m2)%>%
     group_by(ifs)%>%
@@ -163,15 +168,33 @@ main_df <- main_df%>%mutate(debt_m2 = debt/m2)%>%
     ungroup()%>%
     select(-debt_m2)
 
-## Load Program Dummy
+##================= Load Program Dummy ===================#
 prog_file <- "program.xlsx"
 df_prog <- readxl::read_xlsx(path = paste(raw_data_folder, prog_file, sep = '/'))
 df_prog<- df_prog%>%select(countrycode, year, program)
 colnames(df_prog) <- c('ifs','year','program')
 main_df <- left_join(main_df,df_prog, by=c("ifs","year"))
 
+##================ Generate Lagged Current Account to GDP ==========##
+ca_file <- "Current Account.xlsx"
+df_ca_gdp <- readxl::read_xlsx(path = paste(raw_data_folder, ca_file, sep = '/'),sheet ="ca",na = c('n.a.', '', '.', '#TSREF!','0','#N/A N/A'))
 
-### Save Results
+df_ca_gdp <- df_ca_gdp%>%
+    select(CountryCode, starts_with('2'))%>%
+    gather(year, ca_gdp, -CountryCode)
+
+colnames(df_ca_gdp)[1] <- "ifs"
+df_ca_gdp$ year <- as.double(df_ca_gdp$year)
+
+df_ca_gdp <- df_ca_gdp%>%
+    group_by(ifs)%>%
+    arrange(year)%>%
+    mutate(ca_gdp_lag = lag(ca_gdp))%>%
+    ungroup()%>%
+    select(-ca_gdp)
+
+main_df <- left_join(main_df,df_ca_gdp, by=c("ifs","year"))
+##======================= Save Results =========================##
 hist(main_df$e_embi_5d)
 hist(main_df$e_cds_5d)
 save(main_df, file = paste(saveFolder, "event_panel_data.Rda", sep ="/"))

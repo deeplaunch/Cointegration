@@ -1,5 +1,5 @@
 ---
-title: "Regression Analysis for EMBI_Residual: Change in 5-day Average (before and after the event)"
+title: "Regression Analysis for EMBI_Residual: 5-day Change (t+4 vs. t-1)"
 author: Harry Zhao
 date: 2019/09/12
 output:
@@ -36,100 +36,111 @@ load(file = paste(saveFolder, "event_panel_data.Rda", sep ="/"))
 
 ```
 ```{r}
-hist(main_df$e_embi_5d_m_diff, breaks = 12)
+hist(main_df$e_embi_5d_diff, breaks = 12)
+```
+```{r}
+hist(main_df$size)
+hist(log(main_df$size))
+main_df$size <- log(main_df$size)
+```
+```{r}
+hist(main_df$debt_m2_lag)
+hist(log(main_df$debt_m2_lag))
+main_df$debt_m2_lag <- log(main_df$debt_m2_lag)
 ```
 ### Baseline on size of BSL relative to GDP
 ```{r}
-fit_0 <- lm(e_embi_5d_m_diff~size, main_df)
+fit_0 <- lm(e_embi_5d_diff~size, main_df)
 summary(fit_0)
 ```
 ### Specification 1: dummy=1 if lender is China, zero otherwise, and this variable interacted with Size BSL
 ```{r}
-fit1_1 <- lm(e_embi_5d_m_diff~size + china, main_df)
+fit1_1 <- lm(e_embi_5d_diff~size + china, main_df)
 summary(fit1_1)
 ```
 ```{r}
 ### add interaction with size
-fit1_2 <- lm(e_embi_5d_m_diff~size * china, main_df)
+fit1_2 <- lm(e_embi_5d_diff~size * china, main_df)
 summary(fit1_2)
 ```
 ### Specification 2: dummy=1 if BSL is not the first, zero otherwise, and this variable interacted with Size BSL
 ```{r}
-fit2_1 <- lm(e_embi_5d_m_diff~size+is_first, main_df)
+fit2_1 <- lm(e_embi_5d_diff~size+is_first, main_df)
 summary(fit2_1)
 ```
 ```{r}
 ###Add interaction
-fit2_2 <- lm(e_embi_5d_m_diff ~size*is_first, main_df)
+fit2_2 <- lm(e_embi_5d_diff ~size*is_first, main_df)
 summary(fit2_2)
 ```
 Specification 3: dummy=1 if BSL is not the first and has been drawn in the past, zero otherwise, and this variable interacted with Size BSL (skipped for now)
 Specification 4: whether country is part of RFA  at the time of announcement, and this variable interacted with Size BSL(skipped for now)
 ### Specification 5: previous year's reserves to GDP, and this variable interacted with Size BSL
 ```{r}
-fit5_1 <- lm(e_embi_5d_m_diff ~size + res_gdp_lag, main_df)
+fit5_1 <- lm(e_embi_5d_diff ~size + res_gdp_lag, main_df)
 summary(fit5_1)
 ```
 ```{r}
 #Add interaction
-fit5_2 <- lm(e_embi_5d_m_diff ~size * res_gdp_lag, main_df)
+fit5_2 <- lm(e_embi_5d_diff ~size * res_gdp_lag, main_df)
 summary(fit5_2)
 ```
 ### Specification 6: previous year's reserves to M2, and this variable interacted with Size BSL
 ```{r}
-fit6_1 <- lm(e_embi_5d_m_diff ~size + res_m2_lag, main_df)
+fit6_1 <- lm(e_embi_5d_diff ~size + res_m2_lag, main_df)
 summary(fit6_1)
 ```
 ```{r}
 # Add interaction
-fit6_2 <- lm(e_embi_5d_m_diff ~ size * res_m2_lag, main_df)
+fit6_2 <- lm(e_embi_5d_diff ~ size * res_m2_lag, main_df)
 summary(fit6_2)
 ```
 ### Specification 7: previous year's short-term debt due to GDP, and this variable interacted with Size BSL
 ```{r}
-fit7_1 <- lm(e_embi_5d_m_diff ~size + debt_gdp_lag, main_df)
+fit7_1 <- lm(e_embi_5d_diff ~size + debt_gdp_lag, main_df)
 summary(fit7_1)
 ```
 
 ```{r}
 ## Add Interaction
-fit7_2 <- lm(e_embi_5d_m_diff ~size * debt_gdp_lag, main_df)
+fit7_2 <- lm(e_embi_5d_diff ~size * debt_gdp_lag, main_df)
 summary(fit7_2)
 ```
 ### Specification 8: previous year's short-term debt due to M2, and this variable interacted with Size BSL
 ```{r}
-fit8_1 <- lm(e_embi_5d_m_diff ~size + debt_m2_lag, main_df)
+fit8_1 <- lm(e_embi_5d_diff ~size + debt_m2_lag, main_df)
 summary(fit8_1)
 ```
 ```{r}
 # Add interaction
-fit8_2 <- lm(e_embi_5d_m_diff ~size *  debt_m2_lag, main_df)
+fit8_2 <- lm(e_embi_5d_diff ~size *  debt_m2_lag, main_df)
 summary(fit8_2)
 ```
 ### Specification 9: dummy=1 if overlapping with a fund program , and this variable interacted with Size BSL
 ```{r}
-fit9_1 <- lm(e_embi_5d_m_diff ~size + program, main_df)
+fit9_1 <- lm(e_embi_5d_diff ~size + program, main_df)
 summary(fit9_1)
 ```
 ```{r}
 # Add Interaction
-fit9_2 <- lm(e_embi_5d_m_diff ~ size * program, main_df)
+fit9_2 <- lm(e_embi_5d_diff ~ size * program, main_df)
 summary(fit9_2)
 # 
 # Specification 10: average spread in the previous month, and this variable interacted with Size BSL
-# fit10_1 <- lm(e_embi_5d_m_diff ~size + e_embi_l_20d, main_df)
+# fit10_1 <- lm(e_embi_5d_diff ~size + e_embi_l_20d, main_df)
 # summary(fit10_1)
 # Add residuals
-# fit10_2 <- lm(e_embi_5d_m_diff ~size * e_embi_l_20d, main_df)
+# fit10_2 <- lm(e_embi_5d_diff ~size * e_embi_l_20d, main_df)
 # summary(fit10_2)
 ```
-Specification 11: previous year's current account to GDP , and this variable interacted with Size BSL
+### Specification 11: previous year's current account to GDP , and this variable interacted with Size BSL
 ```{r}
-fit10_1 <- lm(e_embi_5d_m_diff ~size + ca_gdp_lag, main_df)
+fit10_1 <- lm(e_embi_5d_diff ~size + ca_gdp_lag, main_df)
 summary(fit10_1)
 ```
+
 ```{r}
-# Add interaction
-fit10_2 <- lm(e_embi_5d_m_diff ~size * ca_gdp_lag, main_df)
+fit10_2 <- lm(e_embi_5d_diff ~size * ca_gdp_lag, main_df)
 summary(fit10_2)
 ```
+
