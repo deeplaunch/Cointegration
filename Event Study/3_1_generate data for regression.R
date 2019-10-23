@@ -1,8 +1,8 @@
 # @ Harry Zhao
-# Created on 2019/08/28
+# Created on 2019/10/21
 # Project: Analyze Bilateral Swap Line Effect on EM Credit Pricing
 # Purpose: Take residuls from earlier regression of credit pricing on global risk factors (US 10yr, VIX) 
-# and build 5-day and 120-day rolling sum for each event.
+# and build 5-day and 120-day rolling sum for each event. ***Excluding outliers outside of 1%ile and 99%ile***
 
 rm(list = ls())
 
@@ -12,6 +12,7 @@ library(dplyr)
 library(lubridate)
 library(RcppRoll)
 library(reshape2)
+library(readxl)
 
 setwd("U:/My Documents/R/Financial Analysis/Event Study")
 raw_data_folder <-"C:/Users/PZhao/Box/Effectiveness/Database/0. Raw data"
@@ -19,7 +20,7 @@ data_folder <- "C:/Users/PZhao/Box/Effectiveness/Database/2. Database"
 saveFolder <- "C:/Users/PZhao/Box/Effectiveness/Database/4. R data"
 
 # Load Residuls
-daily_file <- "e_embicds_long.dta"
+daily_file <- "egfc_embicds_long_merged.dta"
 monthly_file <- "e_embicds_long_m.dta"
 
 daily_df <- read.dta13(paste(data_folder, daily_file, sep ='/'))
@@ -46,8 +47,10 @@ short_event_df <-short_event_df%>%
 main_df <- left_join(main_df,short_event_df,by = c("date","ifs"))%>%
     filter(lender.x == lender.y | (is.na(lender.x) & is.na(lender.y)))
 
-##============ Generate rolling sum of residual for t + 5 and t + 120, and t -20 ==========#
+##============ Generate rolling sum of residual for t + 5 and t + 120, and t -120 ==========#
 
+## embi
+# 5d
 main_df <- main_df%>%group_by(ifs)%>%
     arrange(date)%>%
     mutate(e_embi_5d_m = roll_mean(e_embi, n = 5, fill = NA, align = "left"))%>%
@@ -58,6 +61,100 @@ main_df <- main_df%>%group_by(ifs)%>%
     mutate(e_embi_5d_diff = e_embi_4d_lead - e_embi_1d_lag)%>%
     ungroup()
 
+main_df <- main_df%>%group_by(ifs)%>%
+  arrange(date)%>%
+  mutate(egfc_embi_5d_m = roll_mean(egfc_embi, n = 5, fill = NA, align = "left"))%>%
+  mutate(egfc_embi_5d_m_l = lag(egfc_embi_5d_m, n = 5))%>%
+  mutate(egfc_embi_5d_m_diff = (egfc_embi_5d_m - egfc_embi_5d_m_l))%>%
+  mutate(egfc_embi_4d_lead = lead(egfc_embi, n=4))%>%
+  mutate(egfc_embi_1d_lag = lag(egfc_embi,n=1))%>%
+  mutate(egfc_embi_5d_diff = egfc_embi_4d_lead - egfc_embi_1d_lag)%>%
+  ungroup()
+
+# 120d
+main_df <- main_df%>%group_by(ifs)%>%
+  arrange(date)%>%
+  mutate(e_embi_120d_m = roll_mean(e_embi, n = 120, fill = NA, align = "left"))%>%
+  mutate(e_embi_120d_m_l = lag(e_embi_120d_m, n = 120))%>%
+  mutate(e_embi_120d_m_diff = (e_embi_120d_m - e_embi_120d_m_l))%>%
+  mutate(e_embi_119d_lead = lead(e_embi, n=119))%>%
+  mutate(e_embi_1d_lag = lag(e_embi,n=1))%>%
+  mutate(e_embi_120d_diff = e_embi_119d_lead - e_embi_1d_lag)%>%
+  ungroup()
+
+main_df <- main_df%>%group_by(ifs)%>%
+  arrange(date)%>%
+  mutate(egfc_embi_120d_m = roll_mean(egfc_embi, n = 120, fill = NA, align = "left"))%>%
+  mutate(egfc_embi_120d_m_l = lag(egfc_embi_120d_m, n = 120))%>%
+  mutate(egfc_embi_120d_m_diff = (egfc_embi_120d_m - egfc_embi_120d_m_l))%>%
+  mutate(egfc_embi_119d_lead = lead(egfc_embi, n=119))%>%
+  mutate(egfc_embi_1d_lag = lag(egfc_embi,n=1))%>%
+  mutate(egfc_embi_120d_diff = egfc_embi_119d_lead - egfc_embi_1d_lag)%>%
+  ungroup()
+
+# 100d
+# main_df <- main_df%>%group_by(ifs)%>%
+#   arrange(date)%>%
+#   mutate(e_embi_100d_m = roll_mean(e_embi, n = 100, fill = NA, align = "left"))%>%
+#   mutate(e_embi_100d_m_l = lag(e_embi_100d_m, n = 100))%>%
+#   mutate(e_embi_100d_m_diff = (e_embi_100d_m - e_embi_100d_m_l))%>%
+#   mutate(e_embi_99d_lead = lead(e_embi, n=99))%>%
+#   mutate(e_embi_1d_lag = lag(e_embi,n=1))%>%
+#   mutate(e_embi_100d_diff = e_embi_99d_lead - e_embi_1d_lag)%>%
+#   ungroup()
+# 
+# main_df <- main_df%>%group_by(ifs)%>%
+#   arrange(date)%>%
+#   mutate(egfc_embi_100d_m = roll_mean(egfc_embi, n = 100, fill = NA, align = "left"))%>%
+#   mutate(egfc_embi_100d_m_l = lag(egfc_embi_100d_m, n = 100))%>%
+#   mutate(egfc_embi_100d_m_diff = (egfc_embi_100d_m - egfc_embi_100d_m_l))%>%
+#   mutate(egfc_embi_99d_lead = lead(egfc_embi, n=99))%>%
+#   mutate(egfc_embi_1d_lag = lag(egfc_embi,n=1))%>%
+#   mutate(egfc_embi_100d_diff = egfc_embi_99d_lead - egfc_embi_1d_lag)%>%
+#   ungroup()
+
+## cds
+# 5d
+main_df <- main_df%>%group_by(ifs)%>%
+  arrange(date)%>%
+  mutate(e_cds_5d_m = roll_mean(e_cds, n = 5, fill = NA, align = "left"))%>%
+  mutate(e_cds_5d_m_l = lag(e_cds_5d_m, n = 5))%>%
+  mutate(e_cds_5d_m_diff = (e_cds_5d_m - e_cds_5d_m_l))%>%
+  mutate(e_cds_4d_lead = lead(e_cds, n=4))%>%
+  mutate(e_cds_1d_lag = lag(e_cds,n=1))%>%
+  mutate(e_cds_5d_diff = e_cds_4d_lead - e_cds_1d_lag)%>%
+  ungroup()
+
+main_df <- main_df%>%group_by(ifs)%>%
+  arrange(date)%>%
+  mutate(egfc_cds_5d_m = roll_mean(egfc_cds, n = 5, fill = NA, align = "left"))%>%
+  mutate(egfc_cds_5d_m_l = lag(egfc_cds_5d_m, n = 5))%>%
+  mutate(egfc_cds_5d_m_diff = (egfc_cds_5d_m - egfc_cds_5d_m_l))%>%
+  mutate(egfc_cds_4d_lead = lead(egfc_cds, n=4))%>%
+  mutate(egfc_cds_1d_lag = lag(egfc_cds,n=1))%>%
+  mutate(egfc_cds_5d_diff = egfc_cds_4d_lead - egfc_cds_1d_lag)%>%
+  ungroup()
+
+# 120d
+main_df <- main_df%>%group_by(ifs)%>%
+  arrange(date)%>%
+  mutate(e_cds_120d_m = roll_mean(e_cds, n = 120, fill = NA, align = "left"))%>%
+  mutate(e_cds_120d_m_l = lag(e_cds_120d_m, n = 120))%>%
+  mutate(e_cds_120d_m_diff = (e_cds_120d_m - e_cds_120d_m_l))%>%
+  mutate(e_cds_119d_lead = lead(e_cds, n=119))%>%
+  mutate(e_cds_1d_lag = lag(e_cds,n=1))%>%
+  mutate(e_cds_120d_diff = e_cds_119d_lead - e_cds_1d_lag)%>%
+  ungroup()
+
+main_df <- main_df%>%group_by(ifs)%>%
+  arrange(date)%>%
+  mutate(egfc_cds_120d_m = roll_mean(egfc_cds, n = 120, fill = NA, align = "left"))%>%
+  mutate(egfc_cds_120d_m_l = lag(egfc_cds_120d_m, n = 120))%>%
+  mutate(egfc_cds_120d_m_diff = (egfc_cds_120d_m - egfc_cds_120d_m_l))%>%
+  mutate(egfc_cds_119d_lead = lead(egfc_cds, n=119))%>%
+  mutate(egfc_cds_1d_lag = lag(egfc_cds,n=1))%>%
+  mutate(egfc_cds_120d_diff = egfc_cds_119d_lead - egfc_cds_1d_lag)%>%
+  ungroup()
 # View(main_df%>%filter(year(date) >= 2010 & ifs == 536))
 # mutate(e_embi_120d_m = roll_mean(e_embi, n = 120, fill = NA, align = "left"))%>%
 # mutate(e_cds_5d_m = roll_mean(e_cds, n = 5, fill = NA, align = "left"))%>%
@@ -168,6 +265,15 @@ main_df <- main_df%>%mutate(debt_m2 = debt/m2)%>%
     ungroup()%>%
     select(-debt_m2)
 
+##======== Generate Lagged Short-term Debt to reserves ===========#
+
+main_df <- main_df%>%mutate(debt_res = debt/res)%>%
+  group_by(ifs)%>%
+  arrange(year)%>%
+  mutate(debt_res_lag = lag(debt_res))%>%
+  ungroup()%>%
+  select(-debt_res)
+
 ##================= Load Program Dummy ===================#
 prog_file <- "program.xlsx"
 df_prog <- readxl::read_xlsx(path = paste(raw_data_folder, prog_file, sep = '/'))
@@ -194,12 +300,24 @@ df_ca_gdp <- df_ca_gdp%>%
     select(-ca_gdp)
 
 main_df <- left_join(main_df,df_ca_gdp, by=c("ifs","year"))
+
+##======================= Remove Outliers ======================##
+# get dependent variables
+dependent_var_df <- main_df%>%select(starts_with("e"))%>%select(-c("embi","event_id"))
+
+remove_outliers <- function(x){
+    # for each column, replace values outside of 1%ile and 99%ile with NA
+    x[percent_rank(x) <=0.01 | percent_rank(x)>=0.99] <- NA
+    return(x)
+}
+
+dependent_var_df <- plyr::colwise(remove_outliers)(dependent_var_df)
+main_df[colnames(dependent_var_df)] <- dependent_var_df
+
 ##======================= Save Results =========================##
-hist(main_df$e_embi_5d)
-hist(main_df$e_cds_5d)
-save(main_df, file = paste(saveFolder, "event_panel_data.Rda", sep ="/"))
-
-
+# hist(main_df$e_embi_5d)
+# hist(main_df$e_cds_5d)
+save(main_df, file = paste(saveFolder, "event_panel_data_RM_ex_Outliers.Rda", sep ="/"))
 
 # ### Alternative code for generating Dummy for bsl t to t+4
 # main_df <- main_df%>%
